@@ -4,7 +4,7 @@ const COLS = 10;
 const ROWS = 20;
 const BLOCK = 30;
 
-const COLORS = [
+const COLORS_DARK = [
   null,
   '#4dd0e1', // I - cyan
   '#ffd54f', // O - yellow
@@ -14,6 +14,22 @@ const COLORS = [
   '#90caf9', // J - pale blue
   '#ffb74d', // L - orange
 ];
+
+const COLORS_LIGHT = [
+  null,
+  '#0097a7', // I
+  '#f9a825', // O
+  '#8e24aa', // T
+  '#388e3c', // S
+  '#d32f2f', // Z
+  '#1976d2', // J
+  '#ef6c00', // L
+];
+
+let COLORS = COLORS_DARK;
+let gridColor = '#22222e';
+let shineColor = 'rgba(255,255,255,0.12)';
+let ghostAlpha = 0.2;
 
 const PIECES = [
   null,
@@ -163,13 +179,13 @@ function drawBlock(context, x, y, colorIndex, size, alpha) {
   context.fillStyle = color;
   context.fillRect(x * size + 1, y * size + 1, size - 2, size - 2);
   // highlight
-  context.fillStyle = 'rgba(255,255,255,0.12)';
+  context.fillStyle = shineColor;
   context.fillRect(x * size + 1, y * size + 1, size - 2, 4);
   context.globalAlpha = 1;
 }
 
 function drawGrid() {
-  ctx.strokeStyle = '#22222e';
+  ctx.strokeStyle = gridColor;
   ctx.lineWidth = 0.5;
   for (let c = 1; c < COLS; c++) {
     ctx.beginPath();
@@ -199,7 +215,7 @@ function draw() {
   for (let r = 0; r < current.shape.length; r++)
     for (let c = 0; c < current.shape[r].length; c++)
       if (current.shape[r][c])
-        drawBlock(ctx, current.x + c, gy + r, current.shape[r][c], BLOCK, 0.2);
+        drawBlock(ctx, current.x + c, gy + r, current.shape[r][c], BLOCK, ghostAlpha);
 
   // current piece
   for (let r = 0; r < current.shape.length; r++)
@@ -256,6 +272,31 @@ function loop(ts) {
   animId = requestAnimationFrame(loop);
 }
 
+const themeToggle = document.getElementById('theme-toggle');
+const themeIcon = document.getElementById('theme-icon');
+const themeText = document.getElementById('theme-text');
+
+function setTheme(theme) {
+  const light = theme === 'light';
+  document.documentElement.dataset.theme = light ? 'light' : 'dark';
+  try { localStorage.setItem('tetris-theme', light ? 'light' : 'dark'); } catch (e) { /* ignore */ }
+  themeToggle.setAttribute('aria-checked', String(light));
+  themeToggle.setAttribute('aria-label', light ? 'Modo claro activado' : 'Modo oscuro activado');
+  themeIcon.textContent = light ? '☀️' : '🌙';
+  themeText.textContent = light ? 'Claro' : 'Oscuro';
+  COLORS = light ? COLORS_LIGHT : COLORS_DARK;
+  const styles = getComputedStyle(document.documentElement);
+  gridColor = styles.getPropertyValue('--grid').trim();
+  shineColor = styles.getPropertyValue('--block-shine').trim();
+  ghostAlpha = parseFloat(styles.getPropertyValue('--ghost-alpha')) || 0.2;
+  // Redibujar: el loop está detenido en pausa / game over
+  if (current && next) { draw(); drawNext(); }
+}
+
+function toggleTheme() {
+  setTheme(document.documentElement.dataset.theme === 'light' ? 'dark' : 'light');
+}
+
 function init() {
   board = createBoard();
   score = 0;
@@ -276,6 +317,7 @@ function init() {
 
 document.addEventListener('keydown', e => {
   if (e.code === 'KeyP') { togglePause(); return; }
+  if (e.code === 'KeyT') { toggleTheme(); return; }
   if (paused || gameOver) return;
   switch (e.code) {
     case 'ArrowLeft':
@@ -300,5 +342,10 @@ document.addEventListener('keydown', e => {
 });
 
 restartBtn.addEventListener('click', init);
+themeToggle.addEventListener('click', () => {
+  toggleTheme();
+  themeToggle.blur(); // evita que Space/Enter vuelvan a activar el botón
+});
 
+setTheme(document.documentElement.dataset.theme);
 init();
